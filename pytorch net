@@ -1,0 +1,43 @@
+import torch
+import torchvision
+import torchvision.transforms as transforms
+import matplotlib.pyplot as plt
+import numpy as np
+import torch.optim as optim
+from torch.autograd import Variable
+import torch.nn as nn
+import torch.nn.functional as Func
+
+class CNN_RNN(nn.Module):
+    def __init__(self, nFilters, opt):
+        super(CNN_RNN, self).__init__()
+        self.padDim = 4
+        self.poolsize = 2
+        self.stepsize = 2
+        self.inputchannels = 5
+        self.filtsize = 5
+        self.nFilters = nFilters
+        self.pad = nn.ZeroPad2d((self.padDim, self.padDim, self.padDim, self.padDim))
+        self.pool = nn.MaxPool2d((self.poolsize, self.poolsize), stride=(self.stepsize, self.stepsize))
+        self.conv1 = nn.Conv2d(in_channels=self.inputchannels, out_channels=self.nFilters[0], kernel_size=(self.filtsize, self.filtsize), stride=(1, 1))
+        self.conv2 = nn.Conv2d(in_channels=self.nFilters[0], out_channels=self.nFilters[1], kernel_size=(self.filtsize, self.filtsize), stride=(1, 1))
+        self.conv3 = nn.Conv2d(in_channels=self.nFilters[1], out_channels=self.nFilters[2], kernel_size=(self.filtsize, self.filtsize), stride=(1, 1))
+        self.dropout = nn.Dropout(p=opt['dropoutFrac'])
+        self.fc = nn.Linear(self.nFilters[2]*10*8, opt['embeddingSize'])
+        self.rnn = nn.RNN(input_size=opt['embeddingSize'], hidden_size=opt['embeddingSize'], num_layers=1, nonlinearity='tanh', bias=True, batch_first=True, dropout=opt['dropoutFracRNN'])
+
+    def forward(self, x):
+        x1 = self.pool(Func.tanh(self.conv1(self.pad(x))))
+        x2 = self.pool(Func.tanh(self.conv2(self.pad(x1))))
+        x3 = self.pool(Func.tanh(self.conv3(self.pad(x2))))
+        x4 = x3.view(1, self.nFilters[2]*10*8)
+        x5 = self.dropout(x4)
+        x6 = self.fc(x5)
+        x7 = self.rnn(x6)
+        return x7
+nFilters = [16, 32, 32]
+opt = {'dropoutFrac': 0.6, 'dropoutFracRNN': 0.6, 'embeddingSize': 128, 'sampleSeqLength': 16}
+net = CNN_RNN(nFilters, opt)
+input = Variable(torch.randn(1, 5, 56, 40))
+out = net(input)
+print(out)
