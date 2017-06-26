@@ -33,11 +33,14 @@ class CNN_RNN(nn.Module):
         x4 = x3.view(1, self.nFilters[2]*10*8)
         x5 = self.dropout(x4)
         x6 = self.fc(x5)
-        x7 = self.rnn(x6)
-        return x7
+        x7 = x6.view(-1, self.opt['sampleSeqLength'], self.opt['embeddingSize'])
+        x8, _ = self.rnn(x7)
+        x9 = torch.mean(x8, 1)
+        x10 = x9.view(-1, self.opt['embeddingSize'])
+        return x10
 nFilters = [16, 32, 32]
 opt = {'dropoutFrac': 0.6, 'dropoutFracRNN': 0.6, 'embeddingSize': 128, 'sampleSeqLength': 16}
 net = CNN_RNN(nFilters, opt)
-input = Variable(torch.randn(1, 5, 56, 40))
+input = Variable(torch.randn(16, 5, 56, 40))
 out = net(input)
 print(out)
